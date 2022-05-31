@@ -84,7 +84,7 @@ def register():
         return jsonify({"Error": "Password is too short"}), 400
 
     # Find whether username exits
-    username_= Patient.query.filter_by(username=username).first()
+    username_ = Patient.query.filter_by(username=username).first()
     if username_:
         print("Duplicate username")
         return jsonify({"Error": "User Already Exists"}), 400
@@ -98,13 +98,16 @@ def register():
 
     return jsonify(new_patient.schema())
 
+
 @app.get('/patients')
 def patients():
     pass
 
+
 @app.post('/logout')
 def logout():
-    pass
+    session['login_status'] = False
+    return "Logout"
 
 
 if __name__ == '__main__':
