@@ -1,11 +1,11 @@
-from flask import Flask, jsonify, request, session, redirect, flash, Response
+from flask import Flask, jsonify, request, session, render_template
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = 'secure key'
-CORS(app)
+CORS(app, supports_credentials=True)
 
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///patient.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
@@ -43,8 +43,26 @@ class Patient(db.Model):
             'appointment_time': str(self.appointment_time)
         }
 
+    def values(self):
+        return [self.id,
+                self.username,
+                self.birthday,
+                self.phone_number,
+                self.email,
+                self.address,
+                str(self.appointment_time)]
+
+    @staticmethod
+    def keys():
+        return ['id', 'username', 'birthday', 'phone_number', 'email', 'address', 'appointment_time']
+
 
 db.create_all()
+admin = Patient.query.filter_by(id=1, username='admin').first()
+if not admin:
+    db.session.add(
+        Patient(username='admin', password='admin', birthday=None, phone_number='', email='', address='', photo=''))
+    db.session.commit()
 
 
 @app.post('/login')
@@ -65,8 +83,8 @@ def login():
     return jsonify(patient.schema())
 
 
-@app.post('/register')
-def register():
+@app.post('/create_user')
+def create_user():
     username = request.json["username"]
     password = request.json["password"]
     birthday = datetime.strptime(request.json["birthday"], '%Y-%m-%d')
@@ -101,13 +119,27 @@ def register():
 
 @app.get('/patients')
 def patients():
-    pass
+    print(session)
+    if session.get('login_status'):
+        if session["patient_id"] == 1:
+            all_patients = [i.values() for i in Patient.query.order_by(Patient.id).all()]
+            return jsonify({"headers": Patient.keys(), "patients": all_patients})
+        else:
+            return jsonify({"headers": Patient.keys(),
+                            "patients": [Patient.query.filter_by(id=session["patient_id"]).first().values()]})
+    else:
+        return jsonify({"Error": "Login First"}), 400
 
 
 @app.post('/logout')
 def logout():
     session['login_status'] = False
     return "Logout"
+
+
+@app.get('/')
+def index():
+    return render_template('index.html')
 
 
 if __name__ == '__main__':
